@@ -8,7 +8,8 @@ class JobSQLSerializer(SimpleSQLSerializer):
             "relation" : "self",
             "table" : "jobs",
             "pk" : None,
-            "columns" : ["title", "content"]
+            "columns" : ("title", "content", "application_url"),
+            # "columns_string" : ("title, content, application_url")
         }
         self.schema_joins = [
             {
@@ -72,7 +73,8 @@ class JobSQLSerializer(SimpleSQLSerializer):
         self._table = self.schema_self.get("table")
             
     def select(self, pk=None):
-        results = self.validated_select(pk=pk, schema=self.schema_self)[0]
+        results = self.validated_select(pk=pk, schema=self.schema_self)    
+        results = results[0]
         
         for schema in self.schema_joins:
             temp = self.validated_select(schema = schema)
@@ -87,15 +89,24 @@ class JobSQLSerializer(SimpleSQLSerializer):
         
         for schema in self.schema_joins:
             table = schema.get("join_table")
-            if table:
-                data = request_data.get(table)                
-                self.validated_insert(pk=pk, data=data, schema=schema)
+            data = request_data.get(table)                
+            self.validated_insert(pk=pk, data=data, schema=schema)
             
-        self._validated_results = {"detail" : "Post or Put Success"}
+        self._validated_results = {"detail" : "Post Success"}
             
-        return self.validated_results
+        return self._validated_results
+    
+    def update(self, pk=None, request_data=None):
+        for schema in self.schema_joins:
+            table = schema.get("join_table")
+            data = request_data.get(table)                
+            self.validated_update(pk=pk, data=data, schema=schema)    
+
+        self._validated_results = {"detail" : "Put Success"}
+            
+        return self._validated_results
     
     def delete(self, pk=None):
-        self.validatedd_delete(pk=pk)
+        self.validated_delete(pk=pk)
         
         self._validated_results = {"detail" : "Delete Success"}

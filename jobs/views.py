@@ -20,8 +20,8 @@ class JobDetailView(APIView):
     def get(self, request, pk):    
         sql_serializer = JobSQLSerializer()
                         
-        if sql_serializer.validate():
-            sql_serializer.get(pk=pk)
+        if sql_serializer.validate(pk=pk):
+            sql_serializer.select(pk=pk)
         
         response = sql_serializer.validated_results
         
@@ -32,28 +32,27 @@ class JobDetailView(APIView):
         request_data = request.data
         
         if sql_serializer.validate():
-            sql_serializer.save(request_data=request_data)
+            sql_serializer.insert(request_data=request_data)
         
         response = sql_serializer.validated_results
         
         return response
     
-    def put(self, request):
+    def put(self, request, pk):        
         sql_serializer = JobSQLSerializer()
         request_data = request.data
         
-        if sql_serializer.validate():
-            sql_serializer.save(request_data=request_data)
+        if sql_serializer.validate(pk=pk):
+            sql_serializer.update(request_data=request_data, pk=pk)
         
         response = sql_serializer.validated_results
         
         return response
     
-    def delete(self, request):
+    def delete(self, request, pk):
         sql_serializer = JobSQLSerializer()
-        pk = request.data.get("pk")
         
-        if sql_serializer.validate():
+        if sql_serializer.validate(pk=pk):
             sql_serializer.delete(pk=pk)
         
         response = sql_serializer.validated_results
