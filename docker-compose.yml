@@ -37,9 +37,3 @@ services:
       - ./:/code
     depends_on:
       - db
-    # deploy:
-    #   restart_policy:
-    #     condition: on-failure
-    #     delay: 10s
-    #     max_attempts: 3
-    #     window: 120s
