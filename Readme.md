@@ -17,6 +17,7 @@
 - 객체간 협업 구조
 ![alt text](https://raw.githubusercontent.com/geekanne/catch_recruit/main/Readme_images/oop_relation.png)
 
+
 - Serializer 객체 간 상속 구조
 ![alt text](https://raw.githubusercontent.com/geekanne/catch_recruit/main/Readme_images/oop_inheritance.png)
 
