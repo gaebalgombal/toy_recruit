@@ -14,8 +14,10 @@
 - 때문에 View 객체에서 DB 스키마를 선언만 하고 Serializer 객체를 호출하면, Serializer 객체가 SQL 작업하는 책임을 지도록 했습니다.
 - 어떤 DB 스키마를 선언하던 Serializer가 ‘알아서' SQL작업을 하기 때문에 역시 유연하고 빠르게 변화에 대응할 수 있습니다.
 
+[객체간 협업 구조]
 ![alt text](https://raw.githubusercontent.com/geekanne/catch_recruit/main/Readme_images/oop_relation.png)
 
+[Serializer 객체 간 상속 구조]
 ![alt text](https://raw.githubusercontent.com/geekanne/catch_recruit/main/Readme_images/oop_inheritance.png)
 
 
