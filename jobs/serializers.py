@@ -1,6 +1,6 @@
 from jobs.utils import SimpleSQLSerializer
 
-class JobSQLSerializer(SimpleSQLSerializer):
+class JobSerializer(SimpleSQLSerializer):
     def __init__(self):
         super().__init__()
         
@@ -9,8 +9,9 @@ class JobSQLSerializer(SimpleSQLSerializer):
             "table" : "jobs",
             "pk" : None,
             "columns" : ("title", "content", "application_url"),
-            # "columns_string" : ("title, content, application_url")
+            "column_strings" : ("title, content, application_url")
         }
+        self._table = self.schema_self.get("table")
         self.schema_joins = [
             {
                 "relation" : "fk_to_pk",
@@ -21,6 +22,18 @@ class JobSQLSerializer(SimpleSQLSerializer):
                 "relation" : "fk_to_pk",
                 "join_table" : "application_forms",
                 "column_in_self" : "application_form_id"   
+            },
+            {
+                "relation" : "pk_to_fk",
+                "join_table" : "application_files",
+                "column_in_join":"job_id",
+                "column" : "formfile"
+            },
+            {
+                "relation" : "pk_to_fk",
+                "join_table" : "application_questions",
+                "column_in_join":"job_id",
+                "column" : "question"  
             },
             {
                 "relation" : "fk_to_fk",
@@ -58,55 +71,10 @@ class JobSQLSerializer(SimpleSQLSerializer):
                 "join_column_in_middle" : "term_region_id"
             },
             {
-                "relation" : "pk_to_fk",
-                "join_table" : "application_files",
-                "column_in_join":"job_id",
-                "column" : "formfile"
-            },
-            {
-                "relation" : "pk_to_fk",
-                "join_table" : "application_questions",
-                "column_in_join":"job_id",
-                "column" : "question"  
+                "relation" : "fk_to_fk",
+                "join_table": "companies",
+                "middle_table": "jobs__companies",
+                "self_column_in_middle" : "job_id",
+                "join_column_in_middle" : "company_id"
             }
         ]
-        self._table = self.schema_self.get("table")
-            
-    def select(self, pk=None):
-        results = self.validated_select(pk=pk, schema=self.schema_self)    
-        results = results[0]
-        
-        for schema in self.schema_joins:
-            temp = self.validated_select(schema = schema)
-            results[schema.get("join_table")] = temp
-        
-        self._validated_results = results
-        
-        return self._validated_results
-
-    def insert(self, request_data=None):
-        pk = self.validated_insert(data=request_data, schema=self.schema_self)
-        
-        for schema in self.schema_joins:
-            table = schema.get("join_table")
-            data = request_data.get(table)                
-            self.validated_insert(pk=pk, data=data, schema=schema)
-            
-        self._validated_results = {"detail" : "Post Success"}
-            
-        return self._validated_results
-    
-    def update(self, pk=None, request_data=None):
-        for schema in self.schema_joins:
-            table = schema.get("join_table")
-            data = request_data.get(table)                
-            self.validated_update(pk=pk, data=data, schema=schema)    
-
-        self._validated_results = {"detail" : "Put Success"}
-            
-        return self._validated_results
-    
-    def delete(self, pk=None):
-        self.validated_delete(pk=pk)
-        
-        self._validated_results = {"detail" : "Delete Success"}

@@ -1,15 +1,14 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 
-from jobs.serializers import JobSerializer 
+from companies.serializers import CompanySerializer
 
-# feat
-class JobDetailView(APIView):
+class CompanyDetailView(APIView):
     permission_classes = [AllowAny]
     lookup_field       = 'pk'
 
     def get(self, request, pk):    
-        sql_serializer = JobSerializer()
+        sql_serializer = CompanySerializer()
                         
         if sql_serializer.validate(pk=pk):
             sql_serializer.select(pk=pk)
@@ -19,7 +18,7 @@ class JobDetailView(APIView):
         return response
     
     def post(self, request):
-        sql_serializer = JobSerializer()
+        sql_serializer = CompanySerializer()
         request_data = request.data
         
         if sql_serializer.validate():
@@ -30,7 +29,7 @@ class JobDetailView(APIView):
         return response
     
     def put(self, request, pk):        
-        sql_serializer = JobSerializer()
+        sql_serializer = CompanySerializer()
         request_data = request.data
         
         if sql_serializer.validate(pk=pk):
@@ -41,7 +40,7 @@ class JobDetailView(APIView):
         return response
     
     def delete(self, request, pk):
-        sql_serializer = JobSerializer()
+        sql_serializer = CompanySerializer()
         
         if sql_serializer.validate(pk=pk):
             sql_serializer.delete(pk=pk)
