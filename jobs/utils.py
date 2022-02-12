@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 
-from django.db import IntegrityError, OperationalError, connection
+from django.db import IntegrityError, OperationalError, ProgrammingError, connection
 
 from rest_framework.response import Response
 
@@ -10,13 +10,15 @@ class BaseSQLSerializer(metaclass=ABCMeta):
         self._error = False
         self._error_message = None
         self._validated_results = None
-        self._table = None
-
+        self.schema_self = None
+        self.schema_join = None
+        self._talbe = None
+        
     def validate(self, pk=None):
         query = "SELECT * FROM information_schema.tables WHERE table_name = \"{table}\"".format(table=self._table)
         self._cursor.execute(query)
         table_schema = self._cursor.fetchall()
-        
+                
         if len(table_schema) == 0:
             self._error = True
             self._error_message = {"detail" : "Table not found"}
@@ -116,23 +118,23 @@ class SimpleSQLSerializer(BaseSQLSerializer):
             )
 
         if relation == "fk_to_pk":
-            query = """SELECT DISTINCT {join_table}.* FROM {table}
+            query = """SELECT DISTINCT {join_table}.* FROM {self_table}
             INNER JOIN {join_table}
-            ON {self_table}.{column_in_self} = {join_table}.id;
+            ON {self_table}.{column_in_self} = {join_table}.id
+            WHERE {self_table}.id = {pk};
             """.format(
-                table = self._table,
                 pk = pk,
-                join_table = schema.get("join_table"),
                 self_table = self._table,
+                join_table = schema.get("join_table"),
                 column_in_self = schema.get("column_in_self")
             )
 
         if relation == "fk_to_fk":
-            query = """SELECT DISTINCT {join_table}.* FROM {table}
+            query = """SELECT DISTINCT {join_table}.* FROM {self_table}
             INNER JOIN {middle_table} ON {self_table}.id = {middle_table}.{self_column_in_middle}
-            INNER JOIN {join_table} ON {join_table}.id = {middle_table}.{join_column_in_middle};
+            INNER JOIN {join_table} ON {join_table}.id = {middle_table}.{join_column_in_middle}
+            WHERE {self_table}.id = {pk};
             """.format(
-                table = self._table,
                 pk = pk,
                 middle_table = schema.get("middle_table"),
                 self_table = self._table,
@@ -140,7 +142,7 @@ class SimpleSQLSerializer(BaseSQLSerializer):
                 self_column_in_middle = schema.get("self_column_in_middle"),
                 join_column_in_middle = schema.get("join_column_in_middle")
             )
-                    
+                        
         self._cursor.execute(query)
         rows = self._cursor.fetchall()
             
@@ -188,15 +190,15 @@ class SimpleSQLSerializer(BaseSQLSerializer):
         relation = schema.get("relation", None)
 
         # self
-        if relation == "self":                
+        if relation == "self":
             column_values = tuple([data.get(column) for column in schema.get("columns")])            
-            query = """INSERT INTO {self_table} (title, content, application_url)
+            query = """INSERT INTO {self_table} ({columns})
             VALUES {column_values}""".format(
                 self_table = self._table,
-                columns = schema.get("columns"),
+                columns = schema.get("column_strings"),
                 column_values = column_values
-            )
-                                
+            )            
+
         if relation == "pk_to_fk":
             for d in data:
                 column = schema.get("column")
@@ -209,7 +211,7 @@ class SimpleSQLSerializer(BaseSQLSerializer):
                     column_value = d.get(column)
                 )    
     
-        if relation == "fk_to_fk":
+        if relation == "fk_to_fk":            
             for d in data:
                 query = """INSERT INTO {middle_table} ({self_column_in_middle}, {join_column_in_middle})
                 VALUES ({pk}, {join_column_value})""".format(
@@ -227,6 +229,9 @@ class SimpleSQLSerializer(BaseSQLSerializer):
                     column_in_self = schema.get("column_in_self"),
                     column_value = d.get("id")
                 )
+                
+        
+        print("query", query)
 
         self._cursor.execute(query)
 
@@ -242,18 +247,16 @@ class SimpleSQLSerializer(BaseSQLSerializer):
         try:            
             self.insert_rows(pk=pk, data=data, schema=schema)
 
-        except IntegrityError:
+        except IntegrityError or OperationalError or ProgrammingError:
             self._error = True
-            self._error_message = {"detail" : "IntegrityError"}
-
-        except OperationalError:
-            self._error = True
-            self._error_message = {"detail" : "DB OperationalError"}
+            self._error_message = {"detail" : "Database Error"}
 
         return True
 
     def update_rows(self, pk=None, data=None, schema=None):
         relation = schema.get("relation")
+        
+        print("schema", schema)
         
         if relation == "self":
             for column in schema.get("columns"):
@@ -287,6 +290,8 @@ class SimpleSQLSerializer(BaseSQLSerializer):
                 self._cursor.execute(query)
 
         if relation == "fk_to_pk":
+            print("data", data)
+            
             for d in data:
                 query = """UPDATE {self_table}
                 SET {column_in_self} = {value} WHERE id = {pk}""".format(
@@ -327,20 +332,13 @@ class SimpleSQLSerializer(BaseSQLSerializer):
         try:
             self.update_rows(pk=pk, data=data, schema=schema)
         
-        except IntegrityError:
+        except IntegrityError or OperationalError or ProgrammingError:
             self._error = True
-            self._error_message = {"detail" : "IntegrityError"}
-
-        except OperationalError:
-            self._error = True
-            self._error_message = {"detail" : "DB OperationalError"}
+            self._error_message = {"detail" : "Database Error"}
         
         return True
     
-    def validated_delete(self, pk=None):
-        
-        print("pk", pk)
-        
+    def validated_delete(self, pk=None):        
         query = "DELETE FROM {self_table} WHERE id = {pk}".format(
             self_table = self._table,
             pk = pk
@@ -348,3 +346,44 @@ class SimpleSQLSerializer(BaseSQLSerializer):
         self._cursor.execute(query)
         
         return True
+
+    def select(self, pk=None):
+        results = self.validated_select(pk=pk, schema=self.schema_self)    
+        results = results[0]
+        
+        for schema in self.schema_joins:
+            temp = self.validated_select(schema=schema, pk=pk)
+            results[schema.get("join_table")] = temp
+        
+        self._validated_results = results
+        
+        return self._validated_results
+
+    def insert(self, request_data=None):
+        pk = self.validated_insert(data=request_data, schema=self.schema_self)
+        
+        for schema in self.schema_joins:
+            table = schema.get("join_table")
+            data = request_data.get(table)
+            
+            if data:           
+                self.validated_insert(pk=pk, data=data, schema=schema)
+            
+        self._validated_results = {"detail" : "Post Success"}
+            
+        return self._validated_results
+    
+    def update(self, pk=None, request_data=None):        
+        for schema in self.schema_joins:
+            table = schema.get("join_table")
+            data = request_data.get(table)                
+            self.validated_update(pk=pk, data=data, schema=schema)    
+
+        self._validated_results = {"detail" : "Put Success"}
+            
+        return self._validated_results
+    
+    def delete(self, pk=None):
+        self.validated_delete(pk=pk)
+        
+        self._validated_results = {"detail" : "Delete Success"}
