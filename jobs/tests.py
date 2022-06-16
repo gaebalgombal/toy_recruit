@@ -4,3 +4,5 @@ from django.test import TestCase
 
 ## test
 test = 'This is test'
+
+test2 =  'This is test2'
