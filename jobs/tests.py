@@ -14,3 +14,5 @@ test4 = 'This is test4'
 test5 = 'This is test5'
 
 test6 = 'This is test6'
+
+test7 = 'This is test7'
