@@ -6,3 +6,5 @@ from django.test import TestCase
 test = 'This is test'
 
 test2 =  'This is test2'
+
+test3 = 'This is test3'
