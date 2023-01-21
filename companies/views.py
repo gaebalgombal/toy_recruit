@@ -3,6 +3,8 @@ from rest_framework.permissions import AllowAny
 
 from companies.serializers import CompanySerializer
 
+test = 1
+
 class CompanyDetailView(APIView):
     permission_classes = [AllowAny]
     lookup_field       = 'pk'
